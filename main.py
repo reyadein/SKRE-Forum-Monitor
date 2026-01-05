@@ -146,67 +146,48 @@ def is_actually_english(text):
         
     return True
 
-def fetch_forum_posts_api(menu_seq, rows=15, english_only=False): # <--- Default False dulu
+def fetch_forum_posts_api(menu_seq, rows=15, english_only=False):
     try:
         session = requests.Session()
-        main_url = f"https://forum.netmarble.com/sk_rebirth_gl/list/{menu_seq}/1"
-        
+        # Fake Header Mobile Browser biar lebih dipercaya
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': main_url
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+            'Referer': f"https://forum.netmarble.com/sk_rebirth_gl/list/{menu_seq}/1",
+            'Accept': 'application/json'
         }
         
         api_url = "https://forum.netmarble.com/api/game/tskgb/official/forum/sk_rebirth_gl/article/list"
-        
-        # Kita minta dikit aja dulu (rows=10) buat ngecek
         params = {
-            'rows': 10, 
+            'rows': 5, # Cukup 5 biji buat intip
             'start': 0,
-            'viewType': 'pv',
             'menuSeq': menu_seq,
-            'sort': 'NEW',
             '_': int(time.time() * 1000)
         }
         
-        print(f"\n[{menu_seq}] Requesting API RAW MODE...")
+        print(f"\n[{menu_seq}] INSPECTING JSON STRUCTURE...")
         response = session.get(api_url, headers=headers, params=params, timeout=15)
-        response.raise_for_status()
         
         data = response.json()
-        posts = []
         
         if 'articleList' in data and data['articleList']:
-            raw_list = data['articleList']
-            print(f"[{menu_seq}] API returned {len(raw_list)} raw items.")
+            first_item = data['articleList'][0]
             
-            for i, item in enumerate(raw_list):
-                try:
-                    title = item.get('articleTitle', '').strip()
-                    lang_cd = item.get('languageTypeCd', 'NONE') # Biarin mentah
-                    
-                    # --- DEBUG PRINT (PENTING) ---
-                    # Kita print 5 item pertama buat dilihat user
-                    if i < 5:
-                        print(f"  #{i+1} | Lang: [{lang_cd}] | Title: {title[:50]}...")
-                    
-                    # AMBIL SEMUA TANPA FILTER
-                    post = parse_article(item, menu_seq)
-                    if post['id']:
-                        posts.append(post)
-                        
-                except Exception as e:
-                    print(f"  ❌ Error parsing item #{i}: {e}")
-                    continue
+            print(f"\n--- ISI DATA PERTAMA DARI NETMARBLE (Menu {menu_seq}) ---")
+            print("KEYS YANG TERSEDIA:")
+            print(list(first_item.keys())) # Kita lihat nama key yang bener apa
             
-            print(f"[{menu_seq}] ✅ Total collected: {len(posts)}")
-            return posts
+            print("\nCONTOH ISI FULL:")
+            print(json.dumps(first_item, indent=2, ensure_ascii=False)[:500]) # Print 500 huruf pertama
+            print("--------------------------------------------------\n")
+            
+            return [] # Kita cuma mau liat, return kosong aja
             
         else:
-            print(f"[{menu_seq}] ⚠️ Empty articleList!")
+            print(f"⚠️ articleList kosong/tidak ditemukan. Keys root: {list(data.keys())}")
             return []
-        
+            
     except Exception as e:
-        print(f"Error fetching forum via API: {e}")
+        print(f"Error: {e}")
         return []
 
 def deduplicate_posts(posts):
