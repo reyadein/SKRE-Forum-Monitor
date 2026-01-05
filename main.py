@@ -186,44 +186,72 @@ def fetch_forum_posts_api(menu_seq, rows=15, english_only=True):
             
             for item in data['articleList']:
                 try:
-                    # Get language code - CLEAN IT!
-                    lang_cd = (item.get('languageTypeCd', '') or '').strip().lower()
+                    # Get RAW values
+                    lang_cd_raw = item.get('languageTypeCd', 'MISSING')
                     title = item.get('articleTitle', '').strip()
+                    
+                    # Print RAW untuk debug
+                    print(f"\n{'='*60}")
+                    print(f"RAW DATA:")
+                    print(f"  languageTypeCd: '{lang_cd_raw}'")
+                    print(f"  type: {type(lang_cd_raw)}")
+                    print(f"  repr: {repr(lang_cd_raw)}")
+                    print(f"  title: {title[:50]}")
+                    
+                    # Clean
+                    lang_cd = str(lang_cd_raw).strip().lower()
+                    print(f"  cleaned: '{lang_cd}'")
+                    
+                    # Check condition
+                    is_en_us = lang_cd == 'en_us'
+                    is_en = lang_cd == 'en'
+                    starts_en = lang_cd.startswith('en')
+                    
+                    print(f"  is 'en_us': {is_en_us}")
+                    print(f"  is 'en': {is_en}")
+                    print(f"  starts with 'en': {starts_en}")
+                    print(f"  english_only param: {english_only}")
                     
                     # Skip if no title
                     if not title:
+                        print(f"  ❌ SKIP: No title")
                         continue
                     
-                    # Filter English ONLY
+                    # Filter logic
                     if english_only:
                         is_english = lang_cd in ['en_us', 'en', 'en-us'] or lang_cd.startswith('en')
+                        print(f"  is_english: {is_english}")
                         
                         if not is_english:
-                            print(f"⏭️  Skipping {lang_cd}: {title[:50]}")
+                            print(f"  ❌ SKIP: Not English")
                             continue
                         else:
-                            print(f"✅ English ({lang_cd}): {title[:50]}")
+                            print(f"  ✅ PASS: Is English!")
                     
                     # Parse article
                     post = parse_article(item, menu_seq)
                     
                     if not post['title'] or not post['id']:
-                        print(f"⏭️  Skipping - missing title/ID")
+                        print(f"  ❌ SKIP: Missing title/ID after parse")
                         continue
                     
+                    print(f"  ✅ ADDED to posts list")
                     posts.append(post)
                     
                     # Stop when we have enough
                     if len(posts) >= rows:
+                        print(f"\n✅ Reached {rows} posts, stopping")
                         break
-                        
+                    
                 except Exception as e:
-                    print(f"Error parsing article: {e}")
+                    print(f"  ❌ ERROR parsing: {e}")
+                    import traceback
+                    traceback.print_exc()
                     continue
-        else:
-            print(f"API response structure: {data.keys() if isinstance(data, dict) else 'not a dict'}")
-        
-        return posts[:rows]
+            
+            print(f"\n{'='*60}")
+            print(f"Final: {len(posts)} posts collected")
+            print(f"{'='*60}")
         
     except requests.exceptions.HTTPError as e:
         print(f"HTTP Error: {e}")
